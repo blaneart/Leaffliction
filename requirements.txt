@@ -1,0 +1,6 @@
+torch
+torchvision
+flake8
+plantcv
+PySimpleGUI
+matplotlib
