@@ -4,3 +4,5 @@ flake8
 plantcv
 PySimpleGUI
 matplotlib
+seaborn
+grad-cam

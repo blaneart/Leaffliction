@@ -1,24 +1,22 @@
 from networks import SmallCNNet
 import torch
 import torch.nn as nn
-from torchvision import datasets, models, transforms
-from torchvision.io import write_jpeg
-from torchvision.io import read_image
+from torchvision import models, transforms
 from PIL import Image
-from pytorch_grad_cam import GradCAM, HiResCAM, ScoreCAM, GradCAMPlusPlus, AblationCAM, XGradCAM, EigenCAM, FullGrad
-from pytorch_grad_cam.utils.model_targets import ClassifierOutputTarget
+from pytorch_grad_cam import GradCAM
 from pytorch_grad_cam.utils.image import show_cam_on_image
-import sys
 import numpy as np
 import argparse
 
+
 def init_transforms(image_size):
-        transf = transforms.Compose([
+    transf = transforms.Compose([
             transforms.Resize(image_size),
             transforms.ToTensor(),
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ])
-        return transf
+    return transf
+
 
 def init_model(model_arch, n_classes, weights, image_size, img_path):
     transf = init_transforms(image_size)
@@ -33,7 +31,8 @@ def init_model(model_arch, n_classes, weights, image_size, img_path):
     if model_arch == 'efficientnet':
         model_ft = models.efficientnet_b4()
         num_ftrs = model_ft.classifier[1].in_features
-        model_ft.classifier[1] = nn.Linear(in_features=num_ftrs, out_features=n_classes)
+        model_ft.classifier[1] = nn.Linear(in_features=num_ftrs,
+                                           out_features=n_classes)
         target_layers = [model_ft.features[-2][0].block[-1][0]]
         print(target_layers)
 
@@ -46,25 +45,24 @@ def init_model(model_arch, n_classes, weights, image_size, img_path):
     model_ft.load_state_dict(torch.load(weights))
     # model_ft.eval()
     for param in model_ft.parameters():
-        param.requires_grad=True
+        param.requires_grad = True
     gradcam(model_ft, target_layers, transf, img_path, device)
 
-def gradcam(model_ft, target_layers, transf, path, device):
-    print(device)
-    use = True if device == 'cuda:0' else False
 
+def gradcam(model_ft, target_layers, transf, path, device):
     cam = GradCAM(model=model_ft, target_layers=target_layers,  use_cuda=True)
     image = Image.open(path)
     image.save('kek2.jpg')
     print(model_ft(transf(image).unsqueeze(0).to(device)))
 
     grayscale_cam = cam(input_tensor=transf(image).unsqueeze(0))
-    im = image.resize((224,224)).convert("RGB")
+    im = image.resize((224, 224)).convert("RGB")
     rgb_img = np.array(im)
     rgb_img = np.float32(rgb_img) / 255
     grayscale_cam = grayscale_cam[0, :]
     visualization = show_cam_on_image(rgb_img, grayscale_cam, use_rgb=True)
     im = Image.fromarray(visualization).save('kek.jpg')
+
 
 def create_dict(args):
     args_dict = {
@@ -75,19 +73,25 @@ def create_dict(args):
     }
     return args_dict
 
+
 def parse_args():
     parser = argparse.ArgumentParser(
                     prog='predict',
                     description='Programme to predict class')
     parser.add_argument('image', metavar='image', type=str, nargs=1,
-                        help='directory to augment information about images from')
-    parser.add_argument('--model_arch', '-ma',  type=str, default='resnet', help='FOO!')
+                        help='directory to augment'
+                        'information about images from')
+    parser.add_argument('--model_arch', '-ma',  type=str,
+                        default='efficientnet', help='FOO!')
     parser.add_argument('--image_size', '-s', type=int, default=224)
-    parser.add_argument('--weights', '-w', type=str, default='4')
+    parser.add_argument('--weights', '-w', type=str,
+                        default='./models/efficientnet.pt')
     args = parser.parse_args()
     return create_dict(args)
 
+
 if __name__ == "__main__":
-    args =  parse_args()
+    args = parse_args()
     print(args)
-    init_model(args['model_arch'], 4, args['weights'], args['image_size'], args['image'][0])
+    init_model(args['model_arch'], 4, args['weights'],
+               args['image_size'], args['image'][0])
