@@ -2,20 +2,12 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.optim import lr_scheduler
-import torch.backends.cudnn as cudnn
-import numpy as np
-import torchvision
 from torchvision import datasets, models, transforms
-import matplotlib.pyplot as plt
 import time
 import os
-from PIL import Image
 from tempfile import TemporaryDirectory
 from networks import SmallCNNet
 import wandb
-import os
-import pandas as pd
-from torchvision.io import read_image
 import argparse
 
 
@@ -111,6 +103,7 @@ def init_transformation(image_size):
         ]),
     }
     return data_transforms
+
 
 def init_wandb(lr, model_arch, n_epochs):
     wandb.init(

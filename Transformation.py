@@ -10,7 +10,7 @@ def preprocess(image):
     gaussian_blur = cv2.GaussianBlur(image,(5,5),0)
     img = np.asarray(gaussian_blur, dtype=np.float64)
     return img
-image= 'images/Apple_scab/image (100).JPG'
+image = 'images/Apple_scab/image (100).JPG'
 # img = preprocess(cv2.imread(image))
 img, path, filename = pcv.readimage(filename=image)
 

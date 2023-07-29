@@ -9,6 +9,7 @@ from pytorch_grad_cam import GradCAM
 from pytorch_grad_cam.utils.image import show_cam_on_image
 import numpy as np
 import argparse
+import os
 
 
 def init_transforms(image_size):
@@ -33,8 +34,8 @@ def init_model(model_arch, n_classes, weights, image_size, device):
         num_ftrs = model_ft.classifier[1].in_features
         model_ft.classifier[1] = nn.Linear(in_features=num_ftrs,
                                            out_features=n_classes)
-        target_layers = [model_ft.features[-2][0].block[-1][0]]
-        print(model_ft.features)
+        target_layers = [model_ft.features[-1][0]]
+        print(model_ft.features[-2][-1].block[-1])
     else:
         model_ft = SmallCNNet()
         num_ftrs = model_ft.fc.in_features
@@ -112,22 +113,22 @@ def parse_args():
 def run(window, model_ft, target_layers, transf, device):
     while True:
         event, values = window.read()
-        img = cv2.imencode('.png',
-                           cv2.resize(cv2.imread(values['update']),
-                                      (256, 256)))[1].tobytes()
+        if os.path.isfile(values['update']):
+            img = cv2.imencode('.png',
+                               cv2.resize(cv2.imread(values['update']),
+                                                    (256, 256)))[1].tobytes()
+            pred, transformed, visualization = gradcam(model_ft,
+                                                       target_layers,
+                                                       transf,
+                                                       values['update'],
+                                                       device)
+            visualization = cv2.imencode('.png', visualization)[1].tobytes()
+            window['image'].update(data=img)
+            window['grad_image'].update(data=visualization)
     # See if user wants to quit or window was closed
         if event == sg.WINDOW_CLOSED or event == 'Quit':
             break  # Output a message to the window
         print(values['update'])
-        pred, transformed, visualization = gradcam(model_ft,
-                                                   target_layers,
-                                                   transf,
-                                                   values['update'],
-                                                   device)
-        visualization = cv2.imencode('.png', visualization)[1].tobytes()
-        window['image'].update(data=img)
-        window['grad_image'].update(data=visualization)
-
     window.close()
 
 

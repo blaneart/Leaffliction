@@ -35,7 +35,8 @@ def flip(image, path=None):
 
 
 def rotate(image, path=None):
-    t_image = t.functional.rotate(image, 30, interpolation=Image.BILINEAR)
+    t_image = t.functional.rotate(image, 30,
+                                  interpolation=Image.Resampling.BILINEAR)
     if path is not None:
         write_jpeg(t_image, path + "_Rotation.jpg")
     return t_image
@@ -114,6 +115,13 @@ def create_dataframe(list_of_files):
     return dataframe
 
 
+def stratified_sample_df(df, col, n_samples):
+    n = min(n_samples, df[col].value_counts().min())
+    df_ = df.groupby(col).apply(lambda x: x.sample(n))
+    df_.index = df_.index.droplevel(0)
+    return df_
+
+
 def val_train_split(directory):
     dst = 'augmentations'
     list_of_images = walk_through_dir(directory)
@@ -121,29 +129,32 @@ def val_train_split(directory):
     num_of_aug = len(transformation_functions)
     for (plant, frame) in dataframe.groupby('plant'):
         aug_counter = {}
-        X_train, X_test, y_train, y_test = model_selection.train_test_split(
-            frame['filename'], frame['disease'], test_size=0.1,
-            random_state=42, stratify=frame['disease']
-            )
-        df = pd.concat([X_train, y_train], axis=1)
-        print(df)
-        max_number_augment = df.value_counts('disease').min() * num_of_aug
-        for idx in df.value_counts('disease').index:
-            aug_for_class = max_number_augment
-            - df.value_counts('disease').loc[idx]
-            print(idx, aug_for_class)
+        # X_train, X_test, y_train, y_test = model_selection.train_test_split(
+        #     frame['filename'], frame['disease'], test_size=0.1,
+        #     random_state=42, stratify=frame['disease'])
+        df_test = stratified_sample_df(frame, 'disease', 25)
+        df_train = frame.drop(df_test.index)
+        X_train = df_train['filename']
+        y_train = df_train['disease']
+        X_test = df_test['filename']
+        y_test = df_test['disease']
+        # df = pd.concat([X_train, y_train], axis=1)
+        max_number_augment = df_train.value_counts('disease').min() \
+            * num_of_aug
+        for idx in df_train.value_counts('disease').index:
+            aug_for_class = max_number_augment \
+                - df_train.value_counts('disease').loc[idx]
             aug_counter[idx] = aug_for_class
-        print(aug_counter)
         for x_row, y_row in zip(X_train, y_train):
             path = os.path.join(dst, plant, 'train', y_row)
             if not os.path.exists(path):
                 os.makedirs(path)
             for augmentation in transformation_functions:
                 if aug_counter[y_row] > 0:
-                    path = os.path.join(
+                    save_path = os.path.join(
                                         path,
                                         x_row.split('/')[-1].split('.')[0])
-                    augmentation(read_image(x_row), path)
+                    augmentation(read_image(x_row), save_path)
                     aug_counter[y_row] -= 1
             copy(x_row, path)
         for x_row, y_row in zip(X_test, y_test):
@@ -213,6 +224,7 @@ def show(imgs):
         axs[0, i].imshow(np.asarray(img))
         axs[0, i].set(xticklabels=[], yticklabels=[], xticks=[], yticks=[])
     plt.show()
+
 
 def one_image(img_path):
     img = read_image(img_path)
