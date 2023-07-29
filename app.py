@@ -34,7 +34,7 @@ def init_model(model_arch, n_classes, weights, image_size, device):
         model_ft.classifier[1] = nn.Linear(in_features=num_ftrs,
                                            out_features=n_classes)
         target_layers = [model_ft.features[-2][0].block[-1][0]]
-
+        print(model_ft.features)
     else:
         model_ft = SmallCNNet()
         num_ftrs = model_ft.fc.in_features
