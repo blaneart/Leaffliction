@@ -32,6 +32,8 @@ def create_dataframe(list_of_files):
 
 
 def distributed_images(save_directory, directory):
+    if not os.path.exists(save_directory):
+        os.mkdir(save_directory)    
     list_of_images = []
     for plant in os.listdir(directory):
         for disease in os.listdir(os.path.join(directory, plant)):
@@ -46,8 +48,8 @@ def distributed_images(save_directory, directory):
 
     for (plant, frame) in dataframe.groupby('plant'):
         counts = frame.value_counts('disease')
-        plot_pie(plant + 'lol', counts, counts.index, colors, save_directory)
-        plot_bar(plant + 'lol', counts, counts.index, colors, save_directory)
+        plot_pie(plant, counts, counts.index, colors, save_directory)
+        plot_bar(plant, counts, counts.index, colors, save_directory)
 
 
 def not_distributed_images(directory):

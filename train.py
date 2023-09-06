@@ -7,7 +7,6 @@ import time
 import os
 from tempfile import TemporaryDirectory
 from networks import SmallCNNet
-import wandb
 import argparse
 
 
@@ -66,7 +65,6 @@ def train_model(model, criterion, optimizer, scheduler, dataloaders, dataset_siz
                 epoch_acc = running_corrects.double() / dataset_sizes[phase]
 
                 print(f'{phase} Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f}')
-                wandb.log({f"{phase}_accuracy": epoch_acc, f"{phase}_loss": epoch_loss})
 
 
                 # deep copy the model
@@ -85,9 +83,6 @@ def train_model(model, criterion, optimizer, scheduler, dataloaders, dataset_siz
     return model
 
 
-
-
-
 def init_transformation(image_size):
       
     data_transforms = {
@@ -104,18 +99,17 @@ def init_transformation(image_size):
     }
     return data_transforms
 
+class Model(nn.Module):
+    def __init__(self, baseline, n_classes):
+        super(Model, self).__init__()
+        self.baseline = baseline
+        
+        self.fc = nn.Sequential(nn.Linear(1000, 512), nn.LeakyReLU(),
+                                  nn.Linear(512, n_classes))        
+    def forward(self, x):
+        x = self.baseline(x)
+        return self.fc(x)
 
-def init_wandb(lr, model_arch, n_epochs):
-    wandb.init(
-    # set the wandb project where this run will be logged
-    project="leaffliction",
-    
-    # track hyperparameters and run metadata
-    config={
-    "learning_rate": lr,
-    "architecture": model_arch,
-    "epochs": n_epochs,
-    })
 
 def init_model(model_arch, pretrained, n_classes, lr):
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -124,20 +118,13 @@ def init_model(model_arch, pretrained, n_classes, lr):
         model_ft = models.resnet50(weights=weights)
         num_ftrs = model_ft.fc.in_features
         model_ft.fc = nn.Linear(num_ftrs, n_classes)
-
     if model_arch == 'efficientnet':
-        model_ft = models.efficientnet_b4(weights=weights)
-        num_ftrs = model_ft.classifier[1].in_features
-        model_ft.classifier[1] = nn.Linear(in_features=num_ftrs, out_features=n_classes)
-
+        model_ft = Model(models.efficientnet_b4(weights=weights), n_classes)
     else:
         model_ft = SmallCNNet()
         num_ftrs = model_ft.fc.in_features
         model_ft.fc = nn.Linear(num_ftrs, n_classes)
-    for param in model_ft.parameters():
-        param.requires_grad = False
-    for param in model_ft.classifier.parameters():
-        param.requires_grad = True
+    
 
     model_ft = model_ft.to(device)
 
@@ -160,31 +147,20 @@ def init_dataset(data_transforms, data_dir):
                 for x in ['train', 'val']}
     dataset_sizes = {x: len(image_datasets[x]) for x in ['train', 'val']}
     class_names = image_datasets['train'].classes
-    return dataloaders, dataset_sizes, len(class_names)
+    return dataloaders, dataset_sizes, class_names
 
 
 def init(args):
-    init_wandb(args['lr'], args['model_arch'], args['epochs'])
     tranform = init_transformation(args['image_size'])
-    dataloaders, dataset_sizes, num_classes = init_dataset(tranform, args['dataset'])
+    dataloaders, dataset_sizes, classes = init_dataset(tranform, args['dataset'])
 
-    model, criterion, optimizer_ft, exp_lr_scheduler = init_model(args['model_arch'], args['pretrained'], num_classes, args['lr'])
+    model, criterion, optimizer_ft, exp_lr_scheduler = init_model(args['model_arch'], args['pretrained'], len(classes), args['lr'])
     model = train_model(model, criterion, optimizer_ft, 
                         exp_lr_scheduler,
                          dataloaders,dataset_sizes,
                         num_epochs=args['epochs'])
 
-    for param in model.parameters():
-        param.require_grad = True
-    optimizer_ft = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
-    exp_lr_scheduler = lr_scheduler.StepLR(optimizer_ft, step_size=7, gamma=0.1)
-
-    model = train_model(model, criterion, optimizer_ft, 
-                        exp_lr_scheduler,
-                         dataloaders,dataset_sizes,
-                        num_epochs=args['epochs'])
-
-    torch.save(model.state_dict(), os.path.join(args['save_directory'], args['model_arch'] + '.pt'))
+    torch.save({"model": model.state_dict(), "labels": classes }, os.path.join(args['save_directory'], args['model_arch'] + '.pt'))
 
 def create_dict(args):
     args_dict = {
