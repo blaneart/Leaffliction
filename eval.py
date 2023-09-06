@@ -1,16 +1,16 @@
 import torch
 import time
-from torchvision import datasets, models, transforms
-from .train import init_model
+from torchvision import datasets, transforms
+from train import init_model
 import os
-import torch
-import torch.nn as nn
 import argparse
+
 
 def init_dataset(data_transforms, data_dir):
     image_datasets = datasets.ImageFolder(os.path.join(data_dir),
-                                            data_transforms)
-    dataloaders = torch.utils.data.DataLoader(image_datasets, batch_size=32, num_workers=4)
+                                          data_transforms)
+    dataloaders = torch.utils.data.DataLoader(image_datasets, batch_size=4,
+                                              num_workers=2)
     dataset_sizes = len(image_datasets)
     class_names = image_datasets.classes
     return dataloaders, dataset_sizes, class_names
@@ -41,26 +41,35 @@ def eval_model(model, criterion, dataloaders, dataset_sizes):
 
     print(f'Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f}')
     time_elapsed = time.time() - since
-    print(f'Evaluation complete in {time_elapsed // 60:.0f}m {time_elapsed % 60:.0f}s')
+    print(f'Evaluation complete in {time_elapsed // 60:.0f}m\
+           {time_elapsed % 60:.0f}s')
 
 
 def init_transformation(image_size):
-      
-    data_transforms = {
-        'val': transforms.Compose([
+    data_transforms = transforms.Compose([
             transforms.Resize(image_size),
             transforms.ToTensor(),
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-        ]),
-    }
+        ])
     return data_transforms
+
 
 def init(args):
     tranform = init_transformation(args['image_size'])
-    dataloaders, dataset_sizes, classes = init_dataset(tranform, args['dataset'])
-    model_ft, criterion, _, _ = init_model(args['model_arch'], False, len(classes), 0.01)
-    model_ft.load_state_dict(torch.load(args['weights']['model']))
+    dataloaders, dataset_sizes, classes = init_dataset(tranform,
+                                                       args['dataset'])
+    model_ft, criterion, _, _ = init_model(args['model_arch'],
+                                           False, len(classes), 0.01)
+    model_ft.load_state_dict(torch.load(args['weights'],
+                                        map_location=torch.device('cpu'))
+                             ['model'])
+    # model_int8 = torch.ao.quantization.quantize_dynamic(
+    #     model_ft,  # the original model
+    #     {torch.nn.Linear, torch.nn.Conv2d},  # a set of layers to dynamically quantize
+    #     dtype=torch.qint8)
+    print('after quantization')
     eval_model(model_ft, criterion, dataloaders, dataset_sizes)
+
 
 def create_dict(args):
     args_dict = {
@@ -71,14 +80,17 @@ def create_dict(args):
     }
     return args_dict
 
+
 def parse_arguments():
     parser = argparse.ArgumentParser(
                     prog='eval',
                     description='Programme to train deep learning model')
-    parser.add_argument('--dataset', '-d',  type=str, default=42, help='FOO!')    
-    parser.add_argument('--model_arch', '-ma',  type=str, default=42, help='FOO!')
-    parser.add_argument('--image_size', '-s', type=int, default=224)
-    parser.add_argument('--weights', '-w', type=int, default=5)
+    parser.add_argument('--dataset', '-d',  type=str, default=42,
+                        help='Dataset directory')
+    parser.add_argument('--model_arch', '-ma',  type=str,
+                        default='efficientnet', help='model architecture')
+    parser.add_argument('--image_size', '-s', type=int, default=256)
+    parser.add_argument('--weights', '-w', type=str, default=5)
     args = parser.parse_args()
     return create_dict(args)
 

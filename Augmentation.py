@@ -8,7 +8,6 @@ from torchvision.io import write_jpeg
 from torchvision.io import read_image
 from torchvision.utils import make_grid
 from PIL import Image
-from sklearn import model_selection
 import matplotlib.pyplot as plt
 import torchvision.transforms.functional as F
 import numpy as np

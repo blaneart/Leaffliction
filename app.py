@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 from torchvision import models, transforms
 from PIL import Image
-from pytorch_grad_cam import GradCAM
+from pytorch_grad_cam import GradCAMPlusPlus as GradCAM
 from pytorch_grad_cam.utils.image import show_cam_on_image
 import numpy as np
 import argparse
@@ -21,6 +21,18 @@ def init_transforms(image_size):
     return transf
 
 
+class Model(nn.Module):
+    def __init__(self, baseline, n_classes):
+        super(Model, self).__init__()
+        self.baseline = baseline
+        self.fc = nn.Sequential(nn.Linear(1000, 512), nn.LeakyReLU(),
+                                nn.Linear(512, n_classes))
+
+    def forward(self, x):
+        x = self.baseline(x)
+        return self.fc(x)
+
+
 def init_model(model_arch, n_classes, weights, image_size, device):
     transf = init_transforms(image_size)
     if model_arch == 'resnet':
@@ -30,12 +42,9 @@ def init_model(model_arch, n_classes, weights, image_size, device):
         target_layers = [model_ft.layer3[-1]]
 
     if model_arch == 'efficientnet':
-        model_ft = models.efficientnet_b4()
-        num_ftrs = model_ft.classifier[1].in_features
-        model_ft.classifier[1] = nn.Linear(in_features=num_ftrs,
-                                           out_features=n_classes)
-        target_layers = [model_ft.features[-1][0]]
-        print(model_ft.features[-2][-1].block[-1])
+        model_ft = Model(models.efficientnet_b4(weights=None), n_classes)
+        print(model_ft.baseline)
+        target_layers = [model_ft.baseline.features[-1][0]]
     else:
         model_ft = SmallCNNet()
         num_ftrs = model_ft.fc.in_features
@@ -43,7 +52,8 @@ def init_model(model_arch, n_classes, weights, image_size, device):
         target_layers = [model_ft.conv2]
     model_ft = model_ft.to(device)
     model_ft.load_state_dict(torch.load(weights,
-                                        map_location=torch.device('cpu')))
+                                        map_location=torch.device('cpu'))
+                             ['model'])
     # model_ft.eval()
     for param in model_ft.parameters():
         param.requires_grad = True
@@ -60,7 +70,7 @@ def gradcam(model_ft, target_layers, transf, path, device):
     rgb_img = np.array(im)
     rgb_img = np.float32(rgb_img) / 255
     grayscale_cam = grayscale_cam[0, :]
-    visualization = show_cam_on_image(rgb_img, grayscale_cam, use_rgb=True)
+    visualization = show_cam_on_image(rgb_img, grayscale_cam)
     return pred, transformed, visualization
 
 
@@ -105,7 +115,7 @@ def parse_args():
                         default='efficientnet', help='FOO!')
     parser.add_argument('--image_size', '-s', type=int, default=224)
     parser.add_argument('--weights', '-w', type=str,
-                        default='./models/efficientnet.pt')
+                        default='./weights/apple_weights/efficientnet.pt')
     args = parser.parse_args()
     return create_dict(args)
 
