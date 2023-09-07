@@ -43,7 +43,8 @@ def init_model(model_arch, n_classes, weights, image_size, device):
     elif model_arch == 'efficientnet_v2':
         model_ft = models.efficientnet_v2_s(weights=weights)
         num_ftrs = model_ft.classifier[1].in_features
-        model_ft.classifier[1] = nn.Linear(in_features=num_ftrs, out_features=n_classes)
+        model_ft.classifier[1] = nn.Linear(in_features=num_ftrs,
+                                           out_features=n_classes)
         target_layers = [model_ft.features[-1][0]]
     elif model_arch == 'efficientnet':
         model_ft = Model(models.efficientnet_b4(weights=None), n_classes)
