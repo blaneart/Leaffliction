@@ -118,8 +118,12 @@ def init_model(model_arch, pretrained, n_classes, lr):
         model_ft = models.resnet50(weights=weights)
         num_ftrs = model_ft.fc.in_features
         model_ft.fc = nn.Linear(num_ftrs, n_classes)
-    if model_arch == 'efficientnet':
+    elif model_arch == 'efficientnet':
         model_ft = Model(models.efficientnet_b4(weights=weights), n_classes)
+    elif model_arch == 'efficientnet_v2':
+        model_ft = models.efficientnet_v2_s(weights=weights)
+        num_ftrs = model_ft.classifier[1].in_features
+        model_ft.classifier[1] = nn.Linear(in_features=num_ftrs, out_features=n_classes)
     else:
         model_ft = SmallCNNet()
         num_ftrs = model_ft.fc.in_features
@@ -130,8 +134,7 @@ def init_model(model_arch, pretrained, n_classes, lr):
     optimizer_ft = optim.SGD(model_ft.parameters(), lr=lr, momentum=0.9)
 
     # Decay LR by a factor of 0.1 every 7 epochs
-    exp_lr_scheduler = lr_scheduler.StepLR(optimizer_ft, step_size=7,
-                                           gamma=0.1)
+    exp_lr_scheduler = lr_scheduler.StepLR(optimizer_ft, step_size=5, gamma=0.1)
     return model_ft, criterion, optimizer_ft, exp_lr_scheduler
 
 

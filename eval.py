@@ -9,7 +9,11 @@ import argparse
 def init_dataset(data_transforms, data_dir):
     image_datasets = datasets.ImageFolder(os.path.join(data_dir),
                                           data_transforms)
+<<<<<<< Updated upstream
     dataloaders = torch.utils.data.DataLoader(image_datasets, batch_size=4,
+=======
+    dataloaders = torch.utils.data.DataLoader(image_datasets, batch_size=8,
+>>>>>>> Stashed changes
                                               num_workers=2)
     dataset_sizes = len(image_datasets)
     class_names = image_datasets.classes

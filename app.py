@@ -40,10 +40,13 @@ def init_model(model_arch, n_classes, weights, image_size, device):
         num_ftrs = model_ft.fc.in_features
         model_ft.fc = nn.Linear(num_ftrs, n_classes)
         target_layers = [model_ft.layer3[-1]]
-
-    if model_arch == 'efficientnet':
+    elif model_arch == 'efficientnet_v2':
+        model_ft = models.efficientnet_v2_s(weights=weights)
+        num_ftrs = model_ft.classifier[1].in_features
+        model_ft.classifier[1] = nn.Linear(in_features=num_ftrs, out_features=n_classes)
+        target_layers = [model_ft.features[-1][0]]
+    elif model_arch == 'efficientnet':
         model_ft = Model(models.efficientnet_b4(weights=None), n_classes)
-        print(model_ft.baseline)
         target_layers = [model_ft.baseline.features[-1][0]]
     else:
         model_ft = SmallCNNet()
