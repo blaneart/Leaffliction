@@ -77,18 +77,16 @@ def gradcam(model_ft, target_layers, transf, path, device):
     return pred, transformed, visualization
 
 
-def app(image, transformed_image, grad_image, classes):
+def app(image, grad_image, predicted_class):
     layout = [
         [sg.Text('Original'),
-         sg.Text('Transformed'),
          sg.Text('GradCam')],
         [sg.Image(data=image, key='image'),
-         sg.Image(data=transformed_image, key='transformed_image'),
          sg.Image(data=grad_image, key='grad_image')],
         [sg.Text('===  DL classification  ===')],
         [sg.Text('Update Image'), sg.In(r'image', size=(40, 1), key='update'),
          sg.FileBrowse()],
-        [sg.Text('', key='prediction')],
+        [sg.Text(predicted_class, key='prediction')],
 
         [sg.OK('Update'), sg.Button('Quit')]]
 
@@ -125,7 +123,7 @@ def parse_args():
     return create_dict(args)
 
 
-def run(window, model_ft, target_layers, transf, device):
+def run(window, model_ft, target_layers, transf, classes, device):
     while True:
         event, values = window.read()
         if os.path.isfile(values['update']):
@@ -140,7 +138,7 @@ def run(window, model_ft, target_layers, transf, device):
             visualization = cv2.imencode('.png', visualization)[1].tobytes()
             window['image'].update(data=img)
             window['grad_image'].update(data=visualization)
-            print(pred)
+            window['prediction'].update(classes[torch.argmax(pred, 1)])
             window['image'].update(data=img)
     # See if user wants to quit or window was closed
         if event == sg.WINDOW_CLOSED or event == 'Quit':
@@ -154,18 +152,20 @@ if __name__ == "__main__":
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     image = cv2.resize(cv2.imread(args['image'][0]), (256, 256))
-    model_ft, transf, target_layers, classes = init_model(args['model_arch'], 4,
-                                                 args['weights'],
-                                                 args['image_size'],
-                                                 device)
+    model_ft, transf, target_layers, classes = init_model(args['model_arch'],
+                                                          4,
+                                                          args['weights'],
+                                                          args['image_size'],
+                                                          device)
 
     pred, transformed, visualization = gradcam(model_ft, target_layers,
                                                transf, args['image'][0],
                                                device)
+    predicted_class = classes[torch.argmax(pred, 1)]
 
     imgbytes = cv2.imencode('.png', image)[1].tobytes()
     visualization = cv2.imencode('.png', visualization)[1].tobytes()
     transformed = cv2.imencode('.png', image)[1].tobytes()
     sg.theme('light green')
-    window = app(imgbytes, transformed, visualization, classes)
-    run(window, model_ft, target_layers, transf, device)
+    window = app(imgbytes, visualization, predicted_class)
+    run(window, model_ft, target_layers, transf, classes, device)
