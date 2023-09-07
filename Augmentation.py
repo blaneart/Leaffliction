@@ -214,14 +214,14 @@ def walk_through_dir(directory):
     return list_of_images
 
 
-def show(imgs):
-    if not isinstance(imgs, list):
-        imgs = [imgs]
+def show(imgs, labels):
     fig, axs = plt.subplots(ncols=len(imgs), squeeze=False)
     for i, img in enumerate(imgs):
         img = img.detach()
         img = F.to_pil_image(img)
+        axs[0, i].set_title(labels[i])
         axs[0, i].imshow(np.asarray(img))
+
         axs[0, i].set(xticklabels=[], yticklabels=[], xticks=[], yticks=[])
     plt.show()
 
@@ -231,11 +231,18 @@ def one_image(img_path):
     list_of_augs = []
     for augmentation in transformation_functions:
         list_of_augs.append(augmentation(img))
-    grid = make_grid(list_of_augs)
-    show(grid)
+    # grid = make_grid(list_of_augs)
+    labels = [
+    'flip', 'rotate', 'blur', 'contrast',
+    'brightness', 'perspective', 'scaling'
+    ]
+
+    show(list_of_augs, labels=labels)
 
 
 if __name__ == '__main__':
+
+    plt.rcParams["figure.figsize"] = (10, 10)
     args = parse_arguments()
     path = args.directory[0]
     if not os.path.exists(path):
