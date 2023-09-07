@@ -54,13 +54,13 @@ def init_model(model_arch, n_classes, weights, image_size, device):
         model_ft.fc = nn.Linear(num_ftrs, n_classes)
         target_layers = [model_ft.conv2]
     model_ft = model_ft.to(device)
-    model_ft.load_state_dict(torch.load(weights,
-                                        map_location=torch.device('cpu'))
-                             ['model'])
-    # model_ft.eval()
+    saved_dict = torch.load(weights,
+                            map_location=torch.device('cpu'))
+    model_ft.load_state_dict(saved_dict['model'])
+    classes = saved_dict['labels']
     for param in model_ft.parameters():
         param.requires_grad = True
-    return model_ft, transf, target_layers
+    return model_ft, transf, target_layers, classes
 
 
 def gradcam(model_ft, target_layers, transf, path, device):
@@ -77,7 +77,7 @@ def gradcam(model_ft, target_layers, transf, path, device):
     return pred, transformed, visualization
 
 
-def app(image, transformed_image, grad_image):
+def app(image, transformed_image, grad_image, classes):
     layout = [
         [sg.Text('Original'),
          sg.Text('Transformed'),
@@ -88,6 +88,8 @@ def app(image, transformed_image, grad_image):
         [sg.Text('===  DL classification  ===')],
         [sg.Text('Update Image'), sg.In(r'image', size=(40, 1), key='update'),
          sg.FileBrowse()],
+        [sg.Text('', key='prediction')],
+
         [sg.OK('Update'), sg.Button('Quit')]]
 
     window = sg.Window('Prediction',
@@ -118,7 +120,7 @@ def parse_args():
                         default='efficientnet', help='FOO!')
     parser.add_argument('--image_size', '-s', type=int, default=224)
     parser.add_argument('--weights', '-w', type=str,
-                        default='./weights/apple_weights/efficientnet.pt')
+                        default='./weights/apple_weights/efficientnet_v2.pt')
     args = parser.parse_args()
     return create_dict(args)
 
@@ -138,6 +140,8 @@ def run(window, model_ft, target_layers, transf, device):
             visualization = cv2.imencode('.png', visualization)[1].tobytes()
             window['image'].update(data=img)
             window['grad_image'].update(data=visualization)
+            print(pred)
+            window['image'].update(data=img)
     # See if user wants to quit or window was closed
         if event == sg.WINDOW_CLOSED or event == 'Quit':
             break  # Output a message to the window
@@ -150,7 +154,7 @@ if __name__ == "__main__":
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     image = cv2.resize(cv2.imread(args['image'][0]), (256, 256))
-    model_ft, transf, target_layers = init_model(args['model_arch'], 4,
+    model_ft, transf, target_layers, classes = init_model(args['model_arch'], 4,
                                                  args['weights'],
                                                  args['image_size'],
                                                  device)
@@ -163,5 +167,5 @@ if __name__ == "__main__":
     visualization = cv2.imencode('.png', visualization)[1].tobytes()
     transformed = cv2.imencode('.png', image)[1].tobytes()
     sg.theme('light green')
-    window = app(imgbytes, transformed, visualization)
+    window = app(imgbytes, transformed, visualization, classes)
     run(window, model_ft, target_layers, transf, device)
