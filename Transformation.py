@@ -1,3 +1,4 @@
+#!python
 import argparse
 import os
 from plantcv import plantcv as pcv
@@ -7,10 +8,10 @@ import sys
 def walk_through_dir(directory):
     list_of_images = []
     for plant in os.listdir(directory):
-        for disease in os.listdir(os.path.join(directory,plant)):
+        # for disease in os.listdir(os.path.join(directory,plant)):
             # for file in os.listdir(os.path.join(directory, plant, disease)):
-                if os.path.isfile(os.path.join(directory,plant, disease)):
-                    list_of_images.append(os.path.join(directory,plant,disease))
+                if os.path.isfile(os.path.join(directory,plant)):
+                    list_of_images.append(os.path.join(directory,plant))
     return list_of_images
 
 def apply_guassian_blur(img):
@@ -189,7 +190,6 @@ def one_image(img_path, args):
             t_img = transformations[key](img)
             print(os.path.join(args['dst'], filename.split('.')[0],  key, '.png'))
             pcv.print_image(t_img, os.path.join(args['dst'], filename.split('.')[0] + '_' + key + '.png'))
-
     else:
         for key in transformations.keys():
             if args[key]:
@@ -201,7 +201,7 @@ def one_image(img_path, args):
 
 if __name__ == '__main__':
     args = parse_arguments()
-    print(args)
+
     path = args['src']
     if not os.path.exists(path):
         sys.exit('This directory doesn\'t exist or is not accessible')
